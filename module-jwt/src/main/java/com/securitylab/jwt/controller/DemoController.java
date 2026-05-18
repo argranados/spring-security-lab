@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api")
 public class DemoController {
+    //  endpoint protegido que devuelve el usuario autenticado
 
     @GetMapping("/hello")
     public ResponseEntity<String> hello(@AuthenticationPrincipal UserDetails user) {

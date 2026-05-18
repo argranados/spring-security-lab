@@ -1,29 +1,29 @@
 package com.securitylab.jwt.controller;
 
+import com.securitylab.jwt.model.AuthResponse;
+import com.securitylab.jwt.model.LoginRequest;
+import com.securitylab.jwt.model.RefreshRequest;
 import com.securitylab.jwt.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
+    //  endpoints /auth/login y /auth/refresh
 
     private final AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> login(@RequestBody Map<String, String> request) {
-        return ResponseEntity.ok(authService.login(
-                request.get("username"),
-                request.get("password")
-        ));
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request.username(), request.password()));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<Map<String, String>> refresh(@RequestBody Map<String, String> request) {
-        return ResponseEntity.ok(authService.refreshToken(request.get("refreshToken")));
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        return ResponseEntity.ok(authService.refreshToken(request.refreshToken()));
     }
 }

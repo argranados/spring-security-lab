@@ -21,6 +21,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+    // cadena de filtros stateless, rutas públicas/privadas
 
     private final JwtAuthFilter jwtAuthFilter;
     private final UserDetailsService userDetailsService;

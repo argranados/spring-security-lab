@@ -15,6 +15,7 @@ import java.util.function.Function;
 
 @Service
 public class JwtService {
+    // genera y valida tokens con JJWT
 
     @Value("${jwt.secret}")
     private String secretKey;

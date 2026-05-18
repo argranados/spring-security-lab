@@ -20,6 +20,7 @@ import java.io.IOException;
 @Component
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
+    // intercepta cada request y valida el Bearer token
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
