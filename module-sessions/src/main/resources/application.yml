@@ -14,6 +14,17 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: true
+    open-in-view: false
 
+  # Redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  # Spring Session — le dice a Spring que use Redis en lugar de memoria JVM
   session:
-    timeout: 30m   # la sesión expira a los 30 minutos de inactividad 
+    store-type: redis
+    timeout: 30m
+    redis:
+      namespace: sessions-lab  # prefijo de las keys en Redis

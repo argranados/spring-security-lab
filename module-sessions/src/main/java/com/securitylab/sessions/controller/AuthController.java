@@ -75,4 +75,18 @@ public class AuthController {
     public String generateHash(@RequestParam String raw) {
         return passwordEncoder.encode(raw);
     }
+
+    // En AuthController.java — agrega este método
+    @GetMapping("/sessions")
+    public ResponseEntity<?> activeSessions(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            return ResponseEntity.status(401).body("No active session");
+        }
+        return ResponseEntity.ok(Map.of(
+                "sessionId", session.getId(),
+                "createdAt", session.getCreationTime(),
+                "lastAccessed", session.getLastAccessedTime(),
+                "maxInactiveInterval", session.getMaxInactiveInterval() + " seconds"));
+    }
 }

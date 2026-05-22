@@ -19,7 +19,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 @Configuration
 @EnableMethodSecurity
 @RequiredArgsConstructor
-// @Order(1)  // ← tu chain tiene prioridad
+// @Order(1) // ← tu chain tiene prioridad
 public class SecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsService;
@@ -41,6 +41,21 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                         .maximumSessions(1)
                         .maxSessionsPreventsLogin(false))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setContentType("application/json");
+                            response.setStatus(401);
+                            response.getWriter().write(
+                                    "{\"error\":\"Unauthorized\",\"message\":\""
+                                            + authException.getMessage() + "\"}");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setContentType("application/json");
+                            response.setStatus(403);
+                            response.getWriter().write(
+                                    "{\"error\":\"Forbidden\",\"message\":\""
+                                            + accessDeniedException.getMessage() + "\"}");
+                        }))
                 .csrf(csrf -> csrf.disable())
                 .logout(logout -> logout
                         .logoutUrl("/auth/logout")
@@ -48,10 +63,8 @@ public class SecurityConfig {
                         .deleteCookies("JSESSIONID")
                         .logoutSuccessHandler((req, res, auth) -> {
                             res.setStatus(200);
-                            res.getWriter().write("{\"message\": \"Logged out successfully\"}");
-                        }))
-                .securityContext(ctx -> ctx
-                        .securityContextRepository(new HttpSessionSecurityContextRepository()));
+                            res.getWriter().write("{\"message\":\"Logged out successfully\"}");
+                        }));
 
         return http.build();
     }

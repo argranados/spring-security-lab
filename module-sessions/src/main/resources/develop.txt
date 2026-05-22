@@ -1,0 +1,13 @@
+docker run -d \
+  --name sessions-redis \
+  -p 6379:6379 \
+  redis:7-alpine
+
+  docker exec -it sessions-redis redis-cli ping
+# debe responder: PONG
+
+echo "OTAzOTg3ODEtMGY3YS00YmE3LWE1YzUtZmI2ZDA0MTNmOGIx" | base64 -d
+# output: 90398781-0f7a-4ba7-a5c5-fb6d0413f8b1
+
+También corre esto en redis-cli para ver cuánto tiempo le queda antes de expirar:
+TTL spring:session:sessions:90398781-0f7a-4ba7-a5c5-fb6d0413f8b1
