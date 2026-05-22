@@ -1,0 +1,19 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: module-sessions
+
+  datasource:
+    url: jdbc:postgresql://localhost:5437/security_sessions
+    username: postgres
+    password: postgres
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+
+  session:
+    timeout: 30m   # la sesión expira a los 30 minutos de inactividad 

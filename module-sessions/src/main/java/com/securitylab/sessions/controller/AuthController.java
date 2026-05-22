@@ -1,0 +1,78 @@
+package com.securitylab.sessions.controller;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.web.bind.annotation.*;
+
+import com.securitylab.sessions.service.UserDetailsServiceImpl;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    // private final AuthenticationManager authenticationManager;
+    private final UserDetailsServiceImpl userDetailsService; // ← agrega
+    private final PasswordEncoder passwordEncoder; // ← agrega
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody Map<String, String> body,
+            HttpServletRequest request) {
+
+        String username = body.get("username");
+        String password = body.get("password");
+
+        // Cargar el usuario directamente
+        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+        // Verificar password manualmente
+        if (!passwordEncoder.matches(password, userDetails.getPassword())) {
+            return ResponseEntity.status(401).body("Bad credentials");
+        }
+
+        // Crear la autenticación
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null,
+                userDetails.getAuthorities());
+
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
+
+        HttpSession session = request.getSession(true);
+        session.setAttribute(
+                HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                context);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Login successful",
+                "sessionId", session.getId(),
+                "username", username));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> me(Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("Not authenticated");
+        }
+        return ResponseEntity.ok(Map.of(
+                "username", authentication.getName(),
+                "roles", authentication.getAuthorities()));
+    }
+
+    @GetMapping("/hash")
+    public String generateHash(@RequestParam String raw) {
+        return passwordEncoder.encode(raw);
+    }
+}
