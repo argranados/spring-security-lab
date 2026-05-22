@@ -9,6 +9,7 @@
 5. [Código de referencia](#código-de-referencia)
 6. [Pruebas con curl](#pruebas-con-curl)
 7. [Preguntas frecuentes en entrevista](#preguntas-frecuentes-en-entrevista)
+8. [Anotaciones más usadas de Spring Security](#anotaciones-más-usadas-de-spring-security)
 
 ---
 
@@ -438,3 +439,213 @@ Es el provider estándar de Spring para autenticación con base de datos. Conect
 
 **¿Qué diferencia hay entre `@AuthenticationPrincipal` y `SecurityContextHolder`?**
 Ambos acceden al usuario autenticado. `@AuthenticationPrincipal` en un parámetro del controller es la forma declarativa y limpia. `SecurityContextHolder.getContext().getAuthentication()` lo puedes llamar desde cualquier capa (servicio, filtro). En controllers siempre prefiere `@AuthenticationPrincipal`.
+
+---
+
+## Anotaciones más usadas de Spring Security
+
+### Habilitar el sistema de anotaciones
+
+Para que las anotaciones de método funcionen debes agregar `@EnableMethodSecurity` en tu `SecurityConfig`. Sin ella las anotaciones existen pero no hacen nada.
+
+```java
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity   // ← habilita @PreAuthorize, @PostAuthorize, etc.
+public class SecurityConfig { ... }
+```
+
+---
+
+### `@PreAuthorize` vs `@PostAuthorize`
+
+La diferencia está en **cuándo** se evalúa la condición:
+
+```
+Request
+   │
+   ▼
+@PreAuthorize   ← evalúa ANTES de ejecutar el método
+   │               si falla → lanza AccessDeniedException → el método NUNCA se ejecuta
+   ▼
+Método ejecuta
+   │
+   ▼
+@PostAuthorize  ← evalúa DESPUÉS de ejecutar el método
+                   si falla → el método YA corrió, solo se bloquea la respuesta
+```
+
+**`@PreAuthorize`** — úsalo casi siempre. Es el más flexible, soporta SpEL completo.
+
+```java
+// Solo usuarios con rol ADMIN pueden acceder
+@PreAuthorize("hasRole('ADMIN')")
+public List<User> getAllUsers() { ... }
+
+// El usuario solo puede ver su propio perfil
+// #username referencia el parámetro del método
+@PreAuthorize("#username == authentication.principal.username")
+public UserProfile getProfile(String username) { ... }
+
+// Múltiples condiciones con operadores lógicos
+@PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+public void deleteOrder(Long id) { ... }
+
+// Verificar permiso granular
+@PreAuthorize("hasAuthority('ORDER_DELETE')")
+public void deleteOrder(Long id) { ... }
+```
+
+**`@PostAuthorize`** — úsalo cuando necesitas evaluar el **resultado** del método. Poco común en la práctica.
+
+```java
+// El método corre y carga el User de BD,
+// pero solo devuelve el resultado si es el dueño del recurso
+@PostAuthorize("returnObject.username == authentication.principal.username")
+public User getUserById(Long id) { ... }
+// ↑ útil cuando no sabes de quién es el recurso hasta cargarlo de BD
+```
+
+---
+
+### `@Secured` y `@RolesAllowed`
+
+Alternativas más simples a `@PreAuthorize` pero sin soporte para SpEL.
+
+```java
+// @Secured — solo roles, sintaxis simple
+// IMPORTANTE: debes incluir el prefijo ROLE_ explícitamente
+@Secured("ROLE_ADMIN")
+public void adminOnly() { ... }
+
+@Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
+public void adminOrManager() { ... }
+
+// @RolesAllowed — estándar Jakarta EE, equivalente a @Secured
+@RolesAllowed("ADMIN")
+public void adminOnly() { ... }
+
+@RolesAllowed({"ADMIN", "MANAGER"})
+public void adminOrManager() { ... }
+```
+
+| Anotación | SpEL | Prefijo ROLE_ | Estándar |
+|---|---|---|---|
+| `@PreAuthorize` | Sí | No (lo agrega automáticamente con `hasRole()`) | Spring |
+| `@PostAuthorize` | Sí | No | Spring |
+| `@Secured` | No | Sí (debes escribirlo) | Spring |
+| `@RolesAllowed` | No | No | Jakarta EE |
+
+---
+
+### `@AuthenticationPrincipal`
+
+Inyecta el usuario autenticado directamente como parámetro del controller, sin necesidad de acceder al `SecurityContextHolder` manualmente.
+
+```java
+// Inyecta el UserDetails completo
+@GetMapping("/me")
+public ResponseEntity<String> getMe(@AuthenticationPrincipal UserDetails user) {
+    return ResponseEntity.ok("Hola " + user.getUsername());
+}
+
+// Si tienes tu propio UserDetails personalizado
+@GetMapping("/me")
+public ResponseEntity<String> getMe(@AuthenticationPrincipal CustomUserDetails user) {
+    return ResponseEntity.ok("Hola " + user.getFullName());
+}
+
+// Acceder a un campo específico con SpEL
+@GetMapping("/me")
+public ResponseEntity<String> getMe(
+        @AuthenticationPrincipal(expression = "username") String username) {
+    return ResponseEntity.ok("Hola " + username);
+}
+```
+
+---
+
+### Anotaciones para tests
+
+Esenciales para probar endpoints protegidos sin levantar un servidor real.
+
+```java
+// Simula un usuario autenticado con roles específicos
+@Test
+@WithMockUser(username = "admin", roles = {"ADMIN"})
+void adminEndpointShouldReturn200() throws Exception {
+    mockMvc.perform(get("/api/admin"))
+           .andExpect(status().isOk());
+}
+
+// Simula usuario anónimo (sin autenticación)
+@Test
+@WithAnonymousUser
+void protectedEndpointShouldReturn403() throws Exception {
+    mockMvc.perform(get("/api/hello"))
+           .andExpect(status().isForbidden());
+}
+
+// Carga un usuario real desde tu UserDetailsService
+@Test
+@WithUserDetails("admin")
+void shouldLoadRealUserFromService() throws Exception {
+    mockMvc.perform(get("/api/hello"))
+           .andExpect(status().isOk());
+}
+```
+
+---
+
+### Expresiones SpEL más comunes
+
+Las expresiones SpEL se usan dentro de `@PreAuthorize` y `@PostAuthorize`.
+
+```java
+// Roles y permisos
+hasRole('ADMIN')                              // tiene ROLE_ADMIN
+hasAnyRole('ADMIN', 'MANAGER')                // tiene cualquiera de los roles
+hasAuthority('ORDER_READ')                    // tiene el permiso exacto ORDER_READ
+hasAnyAuthority('ORDER_READ', 'ORDER_WRITE')  // tiene cualquiera de los permisos
+
+// Estado de autenticación
+isAuthenticated()                             // está autenticado (no anónimo)
+isAnonymous()                                 // es usuario anónimo
+isFullyAuthenticated()                        // autenticado y no por remember-me
+permitAll()                                   // siempre permite
+denyAll()                                     // siempre bloquea
+
+// Acceder al usuario actual
+authentication.principal.username             // username del usuario autenticado
+authentication.name                           // equivalente a username
+authentication.authorities                    // colección de roles/permisos
+
+// Referenciar parámetros del método con #
+#id == authentication.principal.id            // parámetro id vs id del usuario actual
+#username == authentication.principal.username
+
+// Referenciar el resultado del método (solo en @PostAuthorize)
+returnObject.owner == authentication.name
+returnObject.username == authentication.principal.username
+```
+
+---
+
+### `hasRole()` vs `hasAuthority()` — diferencia clave en entrevistas
+
+```java
+// hasRole() agrega el prefijo "ROLE_" automáticamente
+hasRole('ADMIN')           // busca internamente "ROLE_ADMIN"
+
+// hasAuthority() busca el valor exacto, sin prefijos
+hasAuthority('ROLE_ADMIN') // equivalente al anterior, pero explícito
+hasAuthority('ORDER_READ') // permiso granular — NO es un rol
+
+// En UserDetailsService, así defines roles vs authorities:
+User.builder()
+    .roles("ADMIN")                           // guarda como "ROLE_ADMIN"
+    .authorities("ROLE_ADMIN", "ORDER_READ")  // guarda exactamente como están
+    .build();
+```
+
+La convención es usar **roles** para grupos amplios (`ADMIN`, `USER`, `MANAGER`) y **authorities** para permisos granulares (`ORDER_READ`, `USER_DELETE`, `REPORT_EXPORT`). Spring solo prefija `ROLE_` automáticamente con `hasRole()` y `.roles()`.
