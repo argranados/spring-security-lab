@@ -34,16 +34,18 @@ public class AuthController {
         String username = body.get("username");
         String password = body.get("password");
 
-        // Cargar el usuario directamente
         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-        // Verificar password manualmente
         if (!passwordEncoder.matches(password, userDetails.getPassword())) {
             return ResponseEntity.status(401).body("Bad credentials");
         }
 
-        // Crear la autenticación
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null,
+        // 💡 Crear el token SIN credenciales — el tercer argumento null borra el
+        // password
+        // del objeto Authentication que se guarda en Redis
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                userDetails,
+                null, // ← null aquí = no guardar el password en la sesión
                 userDetails.getAuthorities());
 
         SecurityContext context = SecurityContextHolder.createEmptyContext();
