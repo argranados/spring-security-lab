@@ -1,0 +1,24 @@
+server:
+    port: 8082
+
+spring:
+    application:
+        name: module-keycloak
+
+    autoconfigure:
+        exclude:
+            - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+            - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+            - org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration
+
+    security:
+        oauth2:
+            resourceserver:
+                jwt:
+                    # Spring descarga automáticamente la clave pública RSA de Keycloak desde esta URL
+                    # Nunca necesitas copiar/pegar claves manualmente
+                    issuer-uri: http://localhost:8080/realms/security-lab
+
+logging:
+    level:
+        org.springframework.security: DEBUG
