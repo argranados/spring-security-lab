@@ -1,0 +1,27 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: module-auth0
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Auth0 issuer siempre termina con / — es importante, sin el slash falla
+          issuer-uri: https://dev-k7g15ir8etb38gvd.us.auth0.com/
+
+# Auth0 requiere validar el audience — el token debe tener este valor en el claim "aud"
+auth0:
+  audience: https://spring-lab-api
+
+logging:
+  level:
+    org.springframework.security: DEBUG
